@@ -4,9 +4,11 @@
 
 const { test } = require('tap')
 const {
-  Request
+  Request,
+  Headers
 } = require('../../')
 const { kState } = require('../../lib/fetch/symbols.js')
+const { URLSearchParams } = require('url')
 
 test('arg validation', (t) => {
   // constructor
@@ -261,6 +263,27 @@ test('pre aborted signal cloned', t => {
   t.end()
 })
 
+test('URLSearchParams body with Headers object - issue #1407', async (t) => {
+  const body = new URLSearchParams({
+    abc: 123
+  })
+
+  const request = new Request(
+    'http://localhost',
+    {
+      method: 'POST',
+      body,
+      headers: {
+        Authorization: 'test'
+      }
+    }
+  )
+
+  t.equal(request.headers.get('content-type'), 'application/x-www-form-urlencoded;charset=UTF-8')
+  t.equal(request.headers.get('authorization'), 'test')
+  t.equal(await request.text(), 'abc=123')
+})
+
 test('post aborted signal cloned', t => {
   t.plan(2)
 
@@ -271,4 +294,36 @@ test('post aborted signal cloned', t => {
     t.pass()
   })
   ac.abort()
+})
+
+test('Passing headers in init', (t) => {
+  // https://github.com/nodejs/undici/issues/1400
+  t.test('Headers instance', (t) => {
+    const req = new Request('http://localhost', {
+      headers: new Headers({ key: 'value' })
+    })
+
+    t.equal(req.headers.get('key'), 'value')
+    t.end()
+  })
+
+  t.test('key:value object', (t) => {
+    const req = new Request('http://localhost', {
+      headers: { key: 'value' }
+    })
+
+    t.equal(req.headers.get('key'), 'value')
+    t.end()
+  })
+
+  t.test('[key, value][]', (t) => {
+    const req = new Request('http://localhost', {
+      headers: [['key', 'value']]
+    })
+
+    t.equal(req.headers.get('key'), 'value')
+    t.end()
+  })
+
+  t.end()
 })
